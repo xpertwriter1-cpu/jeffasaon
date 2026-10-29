@@ -8,6 +8,7 @@ import {
   today,
 } from '../src/lib/admission-validation';
 import { strings, money, password, objectId, phone } from '../src/lib/validation';
+import { runForm } from '../src/lib/forms';
 import { invoiceTotals } from '../src/lib/invoice-totals';
 import { normalizePhone, timestamp } from '../src/lib/mpesa-sandbox';
 const valid = () => ({
@@ -62,6 +63,15 @@ test('form parsing rejects duplicate string fields and ignores Next action metad
   assert.deepEqual(strings(form), { email: 'parent@example.test' });
   form.append('email', 'attacker@example.test');
   assert.throws(() => strings(form));
+});
+test('form actions return user-facing validation errors instead of throwing them away', async () => {
+  const form = new FormData();
+  form.set('password', 'short');
+  const result = await runForm(form, async () => {
+    throw new Error('bad input');
+  });
+  assert.equal(result.error, 'We could not complete your request. Please try again or contact the school.');
+  assert.deepEqual(result.values, {});
 });
 test('money rejects negative, exponential, non-finite and fractional-cent values', () => {
   for (const value of ['-1', '1e4', 'Infinity', '1.001', '0', '10000001'])

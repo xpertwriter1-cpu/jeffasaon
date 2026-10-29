@@ -1,4 +1,4 @@
-import { redirect, unstable_rethrow } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { errorMessage, strings } from './validation';
 export interface FormState {
@@ -14,7 +14,6 @@ export async function runForm(
   try {
     result = await work();
   } catch (error) {
-    unstable_rethrow(error);
     let values: Record<string, string> = {};
     try {
       values = strings(form);
