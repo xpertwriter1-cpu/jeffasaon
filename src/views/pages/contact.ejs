@@ -1,0 +1,11 @@
+<%- include('../partials/header') %><section class="page-hero"><div class="container"><span class="eyebrow">We're happy to help</span><h1>Contact our school</h1><p>Ask about admissions, programmes or anything else you'd like to know.</p></div></section>
+<section class="container section"><div class="row g-5"><div class="col-lg-5"><h2>Let's talk.</h2><p>Reach out and our team will follow up by email.</p><p><strong>Phone</strong><br><%= school.phone %></p><p><strong>Email</strong><br><%= school.email %></p><p><strong>Location</strong><br><%= school.location %></p></div>
+<div class="col-lg-7"><form class="form-card" method="post" action="/contact">
+<% if(error){ %><div class="alert alert-danger" role="alert"><%= error %></div><% } %>
+<input type="hidden" name="_csrf" value="<%= contactToken %>"><input type="hidden" name="requestKey" value="<%= requestKey %>">
+<div hidden aria-hidden="true"><label for="contactWebsite">Leave this field empty</label><input id="contactWebsite" name="website" tabindex="-1" autocomplete="off"></div>
+<div class="mb-3"><label for="contactName" class="form-label">Your name</label><input id="contactName" class="form-control" name="parentName" maxlength="200" value="<%= values.parentName||'' %>" required></div>
+<div class="mb-3"><label for="contactEmail" class="form-label">Email address</label><input id="contactEmail" class="form-control" type="email" name="email" maxlength="254" value="<%= values.email||'' %>" required><small>We will send the school's reply to this address.</small></div>
+<div class="mb-3"><label for="contactPhone" class="form-label">Phone number</label><input id="contactPhone" class="form-control" type="tel" name="phone" maxlength="30" value="<%= values.phone||'' %>" required></div>
+<div class="mb-3"><label for="contactAge" class="form-label">Child's age (optional)</label><input id="contactAge" class="form-control" name="childAge" maxlength="100" value="<%= values.childAge||'' %>"></div>
+<div class="mb-3"><label for="contactMessage" class="form-label">How can we help?</label><textarea id="contactMessage" class="form-control" name="message" rows="4" maxlength="5000" required><%= values.message||'' %></textarea></div><button class="btn btn-primary rounded-pill">Send enquiry</button></form></div></div></section><%- include('../partials/footer') %>

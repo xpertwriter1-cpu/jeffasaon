@@ -1,0 +1,10 @@
+node_modules/
+.env
+npm-debug.log*
+private-uploads/
+.npm-cache/
+
+.next/
+*.tsbuildinfo
+.env.local
+legacy/

@@ -1,0 +1,22 @@
+require('dotenv').config();
+const express=require('express');const mongoose=require('mongoose');const session=require('express-session');const MongoStore=require('connect-mongo');const helmet=require('helmet');const path=require('path');
+const app=express(),PORT=process.env.PORT||3000;
+const crypto=require('crypto');
+const {rateLimit}=require('express-rate-limit');
+const {securityToken,protectForms}=require('./src/middleware/security');
+const production=process.env.NODE_ENV==='production';
+const configuredSecret=process.env.SESSION_SECRET;
+if(production&&(!configuredSecret||configuredSecret.length<32||/change|replace|development/i.test(configuredSecret)))throw new Error('Set SESSION_SECRET to a random secret of at least 32 characters before production.');
+if(production&&process.env.TRUST_PROXY==='1')app.set('trust proxy',1);
+app.disable('x-powered-by');
+
+app.set('view engine','ejs');app.set('views',path.join(__dirname,'src/views'));app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'",'https://cdn.jsdelivr.net'],scriptSrcAttr:["'none'"],styleSrc:["'self'","'unsafe-inline'",'https://cdn.jsdelivr.net','https://fonts.googleapis.com'],fontSrc:["'self'",'https://fonts.gstatic.com','data:'],imgSrc:["'self'",'data:'],upgradeInsecureRequests:production?[]:null}}}));app.use(express.urlencoded({extended:true,limit:'1mb'}));app.use(express.json({limit:'1mb'}));app.use(express.static(path.join(__dirname,'src/public')));
+app.use(require('./src/routes/mpesa-sandbox').callbacks);
+app.use(session({secret:configuredSecret||crypto.randomBytes(48).toString('hex'),resave:false,saveUninitialized:false,store:process.env.MONGODB_URI?MongoStore.create({mongoUrl:process.env.MONGODB_URI}):undefined,cookie:{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',maxAge:28800000}}));
+app.use(securityToken);
+app.use('/auth',rateLimit({windowMs:15*60*1000,limit:30,skip:req=>req.method!=='POST',standardHeaders:'draft-7',legacyHeaders:false}),protectForms);
+app.use('/admin/users',protectForms);
+app.use((req,res,next)=>{if(req.session.user)res.set('Cache-Control','no-store');res.locals.currentUser=req.session.user||null;res.locals.school={name:process.env.SCHOOL_NAME||'Jeffersons Preschool',phone:process.env.SCHOOL_PHONE||'0729 323301',email:process.env.SCHOOL_EMAIL||'jeffersonspreschool@gmail.com',location:process.env.SCHOOL_LOCATION||'Exciting, Rongai, Kenya'};res.locals.flash=req.session.flash||null;delete req.session.flash;next()});
+app.use(require('./src/routes/admissions'));app.use(require('./src/routes/admission-review'));app.use(require('./src/routes/mpesa-sandbox').router);app.use(require('./src/routes/school-records'));app.use(require('./src/routes/contact'));app.use(require('./src/routes/enquiries'));app.use('/',require('./src/routes/public'));app.use('/auth',require('./src/routes/auth'));app.use('/parent',require('./src/routes/parent'));app.use('/admin',require('./src/routes/admin'));
+app.get('/health',(req,res)=>res.json({status:'ok'}));app.use((req,res)=>res.status(404).render('pages/simple',{title:'Page not found',heading:"We can't find that page",message:'Please return to the home page.',link:'/',linkText:'Go home'}));app.use((err,req,res,next)=>{console.error(err);res.status(500).render('pages/simple',{title:'Error',heading:'Something went wrong',message:'Please try again or contact the school.',link:'/',linkText:'Back home'})});
+(async()=>{if(!process.env.MONGODB_URI){console.error('Configure MONGODB_URI in .env');process.exit(1)}try{await mongoose.connect(process.env.MONGODB_URI);require('./src/lib/enquiry-mail').startWorker();app.listen(PORT,()=>console.log(`Jeffersons Preschool running at http://localhost:${PORT}`))}catch(e){console.error('MongoDB connection failed:',e.message);process.exit(1)}})();

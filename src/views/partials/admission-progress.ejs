@@ -1,0 +1,24 @@
+<article class="table-card mb-4 no-print">
+  <h2 class="h4">Enrolment and school approval</h2>
+  <% if(student.admissionApprovedAt) { %>
+    <p>Admission approved by the school on <strong><%= new Date(student.admissionApprovedAt).toLocaleDateString('en-KE',{timeZone:'Africa/Nairobi'}) %></strong>.</p>
+    <% if(staff) { %><p>Approval basis: <%= student.admissionApprovalBasis %><br>Reviewing admin ID: <%= student.admissionApprovedBy %></p><% } %>
+  <% } else if(student.status==='Pending') { %>
+    <% if(student.enrolmentAcceptedAt) { %>
+      <p>Your enrolment agreement was recorded on <%= new Date(student.enrolmentAcceptedAt).toLocaleDateString('en-KE',{timeZone:'Africa/Nairobi'}) %>. <strong>Awaiting school admin approval.</strong></p>
+    <% } else if(!staff) { %>
+      <p>Accept enrolment below to send your application for school admin approval. Fee payment comes after the school approves admission.</p>
+      <form method="post" action="/parent/students/<%= student._id %>/accept">
+        <input type="hidden" name="_csrf" value="<%= admissionToken %>">
+        <input type="hidden" name="agreementVersion" value="<%= agreementVersion %>">
+        <label class="d-flex gap-2 mb-3"><input type="checkbox" name="agree" value="yes" required><span><%= agreementText %></span></label>
+        <button class="btn btn-primary">Agree and request school approval</button>
+      </form>
+    <% } else { %><p>The parent has not yet accepted enrolment. The parent must accept before school approval.</p><% } %>
+    <% if(staff && currentUser.role==='admin') { %><a class="btn btn-outline-primary mt-3" href="/admin/admissions">Open admission approvals</a><% } %>
+  <% } else { %><p>Current school status: <strong><%= student.status %></strong>.</p><% } %>
+<% if(student.status==='Admitted') { %>
+  <div class="notice mt-3"><strong>Next step: fee payment</strong><p>The school has admitted this child. The school must create an invoice, the parent pays, and the bursar verifies receipt. The admin can then mark the child Active. A positive verified payment made after admission is required; sandbox tests do not qualify.</p>
+  <% if(!staff || ['admin','bursar'].includes(currentUser.role)) { %><a class="btn btn-primary" href="<%= staff?'/admin/fees':'/parent/fees' %>"><%= staff?'Create or view fee invoice':'View fees and pay' %></a><% } %></div>
+<% } %>
+</article>

@@ -1,0 +1,17 @@
+<%- include('../partials/header') %>
+<section class="container section narrow-wide">
+<a href="/admin/enquiries">All enquiries</a><h1>Reply to enquiry</h1>
+<% if(!emailReady){ %><div class="alert alert-warning">Email delivery is not configured. Replies can be queued, but they will not be sent until the school completes email setup.</div><% } %>
+<article class="table-card mb-4"><h2 class="h4"><%= enquiry.parentName %></h2>
+<p><%= enquiry.email %> · <%= enquiry.phone %><br>Child age: <%= enquiry.childAge||'Not given' %><br>Received: <%= new Date(enquiry.createdAt).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) %></p>
+<p class="report-comments"><%= enquiry.message %></p>
+<form method="post" action="/admin/enquiries/<%= enquiry._id %>/status" class="d-flex gap-2"><input type="hidden" name="_csrf" value="<%= admissionToken %>"><select class="form-select" name="status" aria-label="Enquiry status"><% ['New','Contacted','Closed'].forEach(status=>{ %><option <%= enquiry.status===status?'selected':'' %>><%= status %></option><% }) %></select><button class="btn btn-outline-primary">Update status</button></form></article>
+<% if(enquiry.status!=='Closed'){ %><div class="form-card mb-4"><h2 class="h4">Reply by email</h2><p>Your reply will be sent to <strong><%= enquiry.email %></strong>. Their response will go to the school's email inbox.</p>
+<form method="post" action="/admin/enquiries/<%= enquiry._id %>/reply"><input type="hidden" name="_csrf" value="<%= admissionToken %>"><input type="hidden" name="replyKey" value="<%= replyKey %>"><label for="replyMessage" class="form-label">Message</label><textarea id="replyMessage" name="message" class="form-control mb-3" rows="6" maxlength="5000" required></textarea><button class="btn btn-primary">Queue email reply</button></form></div><% } %>
+<div class="table-card"><h2 class="h4">Messages and email status</h2><p class="small">Sent means the email service accepted the message; it does not confirm inbox delivery. Refresh this page to see updates.</p>
+<% const messages=enquiry.notifications||[]; if(!messages.length){ %><p>No email history for this earlier enquiry.</p><% } %>
+<% messages.forEach(job=>{ %><article class="border-top py-3"><strong><%= job.kind %> — <%= job.status %></strong><p class="small">To: <%= job.to %> · <%= new Date(job.createdAt).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) %><% if(job.createdBy){ %> · Staff ID: <%= job.createdBy %><% } %></p>
+<% if(job.kind==='Reply'){ %><p class="report-comments"><%= job.text %></p><% } %>
+<% if(job.error){ %><p class="text-danger"><%= job.error %></p><% } %>
+<% if(job.status==='Failed'){ %><p>Check the email provider log before submitting another reply to avoid duplicates.</p><% } %></article><% }) %>
+</div></section><%- include('../partials/footer') %>

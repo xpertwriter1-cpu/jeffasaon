@@ -1,0 +1,11 @@
+<%- include('../partials/header') %><section class="container section"><span class="eyebrow">Staff portal</span><h1>School administration</h1><p>Manage student records, fees and term reports.</p>
+<div class="row g-3 mt-2"><% [{n:'Student records',v:stats.students},{n:'Pending admissions',v:stats.pending},{n:'Payments to verify',v:stats.payments},{n:'Unread enquiries',v:stats.enquiries}].filter(c=>c.v!==null).forEach(c=>{ %><div class="col-sm-6 col-xl-3"><div class="stat-card"><strong><%= c.v %></strong><small><%= c.n %></small></div></div><% }) %></div>
+<div class="row g-3 mt-3"><% [
+{url:'/admin/admissions',n:'Admission approvals',d:'Review parent acceptance and approve admission before fee payment.',roles:['admin']},
+{url:'/admin/students',n:'Student register',d:'Review student applications and admission status.',roles:['admin','teacher','bursar']},
+{url:'/admin/fees',n:'Term fee invoices',d:'Create fee invoices and see verified balances.',roles:['admin','bursar']},
+{url:'/admin/payments',n:'Payment verification',d:'Confirm payments and print receipts.',roles:['admin','bursar']},
+{url:'/admin/reports',n:'Student report forms',d:'Prepare, approve and print term reports.',roles:['admin','teacher']},
+{url:'/admin/enquiries',n:'Parent enquiries',d:'Read visitor enquiries, receive notifications and reply by email.',roles:['admin']},
+{url:'/admin/users',n:'Staff accounts',d:'Create teacher and bursar accounts.',roles:['admin']}
+].filter(c=>c.roles.includes(currentUser.role)).forEach(c=>{ %><div class="col-md-6"><a class="admin-link-card" href="<%= c.url %>"><div><strong><%= c.n %></strong><small><%= c.d %></small></div><b>&rarr;</b></a></div><% }) %></div></section><%- include('../partials/footer') %>

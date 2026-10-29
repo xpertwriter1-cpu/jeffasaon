@@ -1,0 +1,5 @@
+legacy/
+.next/
+node_modules/
+.npm-cache/
+src/public/

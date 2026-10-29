@@ -1,0 +1,11 @@
+<%- include('../partials/header') %><section class="container section narrow-wide print-document">
+<div class="no-print mb-4"><a href="<%= staff?'/admin/students':'/parent/dashboard' %>">Back to <%= staff?'student register':'your portal' %></a> <button class="btn btn-outline-primary ms-3" type="button" data-print>Print record / Save as PDF</button></div>
+<h1><%= student.firstName %> <%= student.middleName||'' %> <%= student.lastName %></h1><p>Admission number: <strong><%= student.admissionNumber||'Not assigned' %></strong> · Status: <strong><%= student.status %></strong></p><p>Linked parent account: <%= student.parentEmail %></p>
+<%- include('../partials/admission-progress') %>
+<% groups.forEach(group=>{ %><article class="table-card mb-4"><h2 class="h4"><%= group.title %></h2><dl class="row mb-0">
+<% group.fields.forEach(field=>{let value=student[field.name];if(field.type==='date' && value) value=new Date(value).toISOString().slice(0,10); %><dt class="col-md-5"><%= field.label %></dt><dd class="col-md-7 report-comments"><%= value||'Not provided' %></dd><% }) %>
+<% if(group.title==='Emergency and collection arrangements' && student.emergencyContact && !student.emergencyName) { %><dt class="col-md-5">Earlier emergency contact</dt><dd class="col-md-7"><%= student.emergencyContact %></dd><% } %>
+</dl></article><% }) %>
+<article class="table-card"><h2 class="h4">Supporting documents</h2><% documentTypes.forEach(kind=>{ const doc=(student.documents||[]).find(document=>document.kind===kind.name); %><div class="mb-3"><strong><%= kind.label %></strong><% if(doc) { %><div><a class="no-print" href="<%= staff?'/admin':'/parent' %>/students/<%= student._id %>/documents/<%= doc._id %>">Download <%= doc.originalName %></a> <span class="small">(<%= (doc.size/1024/1024).toFixed(2) %> MB)</span></div><% } else { %><div>Not submitted</div><% } %></div><% }) %>
+<p class="mb-0">Parent / guardian declaration: <%= student.declarationAt?'Confirmed on '+new Date(student.declarationAt).toLocaleDateString('en-KE',{timeZone:'Africa/Nairobi'}):'Not recorded on this earlier application' %></p></article>
+</section><%- include('../partials/footer') %>

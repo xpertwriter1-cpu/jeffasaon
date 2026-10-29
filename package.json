@@ -1,0 +1,45 @@
+{
+  "name": "jeffersons-preschool",
+  "version": "2.0.0",
+  "private": true,
+  "packageManager": "pnpm@12.11.2",
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "seed": "tsx scripts/seed.ts",
+    "db:check": "tsx scripts/check-database.ts",
+    "db:indexes": "tsx scripts/ensure-indexes.ts",
+    "postinstall": "prisma generate",
+    "mail:worker": "tsx scripts/mail-worker.ts",
+    "db:verify": "tsx scripts/verify-database.ts",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"scripts/*.ts\" \"test/*.ts\" next.config.ts tsconfig.json package.json pnpm-workspace.yaml && prisma format",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"scripts/*.ts\" \"test/*.ts\" next.config.ts tsconfig.json package.json pnpm-workspace.yaml"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "bcryptjs": "latest",
+    "dotenv": "latest",
+    "iron-session": "latest",
+    "next": "16.4.3",
+    "react": "latest",
+    "react-dom": "latest",
+    "server-only": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "prettier": "^3.9.10",
+    "prisma": "6.19.3",
+    "tsx": "latest",
+    "typescript": "latest"
+  },
+  "type": "module"
+}

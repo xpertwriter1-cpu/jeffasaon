@@ -1,0 +1,24 @@
+<%- include('../partials/header') %>
+<section class="container section">
+<a href="/admin/dashboard">School dashboard</a>
+<h1>Admission approvals</h1>
+<p>A pending application is ready when the parent accepts enrolment. Review the record and approve admission first, then create the fee invoice. A verified payment after admission is required before activation. Documents remain optional.</p>
+<div class="row g-3 mb-4"><div class="col-md-6"><div class="stat-card"><strong><%= applications.filter(item=>item.ready).length %></strong><small>Ready for admin review</small></div></div><div class="col-md-6"><div class="stat-card"><strong><%= applications.filter(item=>!item.ready).length %></strong><small>Waiting for parent acceptance</small></div></div></div>
+<% if(!applications.length) { %><p>No pending applications.</p><% } %>
+<% applications.forEach(item=>{ const student=item.student; %>
+<article class="table-card mb-3">
+  <h2 class="h4"><a href="/admin/students/<%= student._id %>"><%= student.firstName %> <%= student.lastName %></a></h2>
+  <p><%= student.admissionNumber||'Number assigned on approval' %> · <%= student.classLevel %><br>Parent: <%= student.parentName %> · <%= student.parentEmail %></p>
+  <p>Parent acceptance: <strong><%= item.accepted?'Confirmed on '+new Date(student.enrolmentAcceptedAt).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}):'Awaiting confirmation' %></strong><br>Verified fee payments: <strong>KSh <%= item.paidAmount.toLocaleString('en-KE') %></strong></p>
+  <% if(item.ready) { %>
+  <p class="text-success">Ready for review: <%= item.basis %></p>
+  <form method="post" action="/admin/admissions/<%= student._id %>/approve">
+    <input type="hidden" name="_csrf" value="<%= admissionToken %>">
+    <label class="d-block mb-3"><input type="checkbox" name="confirmReview" value="yes" required> I have reviewed the child's details and confirm the school can admit this child.</label>
+    <button class="btn btn-primary">Approve admission</button>
+  </form>
+  <% } else { %><p class="mb-0">Waiting for parent acceptance. Approval is not available yet.</p><% } %>
+</article>
+<% }) %>
+</section>
+<%- include('../partials/footer') %>

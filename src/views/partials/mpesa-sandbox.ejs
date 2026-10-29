@@ -1,0 +1,37 @@
+<% if(sandboxEnabled) { %>
+<div class="form-card mb-4">
+  <h2 class="h4">M-Pesa sandbox test</h2>
+  <p class="alert alert-warning">Testing only. Sandbox results do not pay school fees, reduce your balance or issue receipts. Enter your PIN only in an M-Pesa prompt on your phone, never on this website.</p>
+  <% if(!sandboxReady) { %>
+    <p>The school is setting up sandbox testing. The test payment button will be available once setup is complete.</p>
+  <% } else if(!invoices.length) { %>
+    <p>The school must create a term invoice before testing.</p>
+  <% } else { %>
+    <form method="post" action="/parent/payments/mpesa-sandbox">
+      <input type="hidden" name="_csrf" value="<%= recordToken %>">
+      <input type="hidden" name="requestKey" value="<%= sandboxRequestKey %>">
+      <div class="mb-3"><label for="sandboxInvoice" class="form-label">Student and term invoice</label>
+        <select id="sandboxInvoice" name="invoiceId" class="form-select" required><option value="">Choose invoice</option>
+          <% invoices.forEach(inv=>{ %><option value="<%= inv._id %>" <%= String(inv._id)===selectedInvoice?'selected':'' %>><%= inv.student.firstName %> <%= inv.student.lastName %> · <%= inv.year %> Term <%= inv.term %></option><% }) %>
+        </select>
+      </div>
+      <div class="mb-3"><label for="sandboxAmount" class="form-label">Test amount (KSh)</label><input id="sandboxAmount" name="amount" type="number" min="1" max="150000" step="1" value="1" class="form-control" required></div>
+      <div class="mb-3"><label for="sandboxPhone" class="form-label">M-Pesa test phone</label><input id="sandboxPhone" name="parentPhone" type="tel" class="form-control" value="<%= currentUser.phone||'' %>" placeholder="07XXXXXXXX or 2547XXXXXXXX" required><small>Use the test number provided by the school for this sandbox session. A simulation may finish without a phone prompt.</small></div>
+      <button class="btn btn-primary">Send M-Pesa test prompt</button>
+    </form>
+  <% } %>
+  <% if(sandboxAttempts.length) { %>
+    <h3 class="h5 mt-4">Recent sandbox requests</h3>
+    <div class="table-responsive"><table class="table"><thead><tr><th>Date</th><th>Phone / test amount</th><th>Test status</th></tr></thead><tbody>
+    <% sandboxAttempts.forEach(attempt=>{ %><tr>
+      <td><%= new Date(attempt.createdAt).toLocaleString('en-KE',{timeZone:'Africa/Nairobi'}) %></td>
+      <td><%= attempt.phone %><br>KSh <%= attempt.amount.toLocaleString('en-KE') %></td>
+      <td><%= attempt.status %><% if(attempt.resultCode) { %> (code <%= attempt.resultCode %>)<% } %>
+        <% if(!['Successful','Failed'].includes(attempt.status) && attempt.checkoutId) { %>
+        <form method="post" action="/parent/payments/mpesa-sandbox/<%= attempt._id %>/check"><input type="hidden" name="_csrf" value="<%= recordToken %>"><button class="btn btn-sm btn-outline-primary mt-2">Check test status</button></form>
+        <% } %>
+      </td>
+    </tr><% }) %></tbody></table></div>
+  <% } %>
+</div>
+<% } %>

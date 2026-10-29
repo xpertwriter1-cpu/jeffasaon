@@ -1,0 +1,237 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         String   @default("parent")
+  createdAt    DateTime @default(now())
+
+  @@map("users")
+}
+
+model Student {
+  id                         String              @id @default(auto()) @map("_id") @db.ObjectId
+  firstName                  String
+  middleName                 String?
+  lastName                   String
+  dateOfBirth                DateTime?
+  gender                     String?
+  nationality                String?
+  birthCertificateNumber     String?
+  homeLanguage               String?
+  homeAddress                String?
+  classLevel                 String
+  requestedStartDate         DateTime?
+  previousSchool             String?
+  previousClass              String?
+  previousSchoolNotes        String?
+  guardianName               String?
+  guardianRelationship       String?
+  parentPhone                String?
+  alternatePhone             String?
+  guardianOccupation         String?
+  secondGuardianName         String?
+  secondGuardianRelationship String?
+  secondGuardianPhone        String?
+  secondGuardianEmail        String?
+  emergencyName              String?
+  emergencyRelationship      String?
+  emergencyPhone             String?
+  pickupName                 String?
+  pickupRelationship         String?
+  pickupPhone                String?
+  collectionNotes            String?
+  transportRequired          String?
+  transportLocation          String?
+  allergies                  String?
+  medicalConditions          String?
+  medications                String?
+  supportNeeds               String?
+  doctorName                 String?
+  doctorPhone                String?
+  immunisationNotes          String?
+  medicalNotes               String?
+  admissionNumber            String?
+  parentName                 String
+  parentEmail                String
+  emergencyContact           String?
+  declarationAt              DateTime?
+  submittedBy                String?             @db.ObjectId
+  enrolmentAcceptedAt        DateTime?
+  enrolmentAcceptedBy        String?             @db.ObjectId
+  enrolmentAgreementVersion  String?
+  admissionApprovedAt        DateTime?
+  admissionApprovedBy        String?             @db.ObjectId
+  admissionApprovalBasis     String?
+  admissionApprovalPayment   String?             @db.ObjectId
+  activatedAt                DateTime?
+  activatedBy                String?             @db.ObjectId
+  activationPayment          String?             @db.ObjectId
+  documents                  AdmissionDocument[]
+  status                     String              @default("Pending")
+  createdAt                  DateTime            @default(now())
+
+  @@map("students")
+}
+
+type AdmissionDocument {
+  id           String?  @map("_id") @db.ObjectId
+  kind         String
+  storedName   String
+  originalName String
+  mimeType     String
+  size         Int
+  uploadedAt   DateTime @default(now())
+}
+
+model Invoice {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  student   String    @db.ObjectId
+  year      Int
+  term      Int
+  items     FeeItem[]
+  createdBy String    @db.ObjectId
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+
+  @@unique([student, year, term])
+  @@map("invoices")
+}
+
+type FeeItem {
+  id     String? @map("_id") @db.ObjectId
+  label  String
+  amount Float
+}
+
+model Payment {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  student        String?   @db.ObjectId
+  invoice        String?   @db.ObjectId
+  parent         String?   @db.ObjectId
+  parentName     String
+  parentPhone    String?
+  amount         Float
+  purpose        String    @default("Tuition")
+  method         String    @default("M-Pesa")
+  reference      String?
+  transactionKey String?
+  status         String    @default("Pending verification")
+  verifiedBy     String?   @db.ObjectId
+  verifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@map("payments")
+}
+
+model Report {
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  student      String       @db.ObjectId
+  year         Int
+  term         Int
+  classLevel   String
+  assessments  Assessment[]
+  daysPresent  Int
+  daysPossible Int
+  comments     String?
+  teacher      String       @db.ObjectId
+  status       String       @default("Draft")
+  approvedBy   String?      @db.ObjectId
+  publishedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @default(now())
+
+  @@unique([student, year, term])
+  @@map("reports")
+}
+
+type Assessment {
+  id     String? @map("_id") @db.ObjectId
+  area   String
+  rating String
+}
+
+model Enquiry {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  parentName    String
+  email         String
+  phone         String
+  childAge      String?
+  message       String
+  status        String         @default("New")
+  readAt        DateTime?
+  readBy        String?        @db.ObjectId
+  submissionKey String?
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+
+  @@map("enquiries")
+}
+
+type Notification {
+  id             String?   @map("_id") @db.ObjectId
+  kind           String
+  to             String
+  from           String?
+  replyTo        String?
+  subject        String
+  text           String
+  requestKey     String?
+  createdBy      String?   @db.ObjectId
+  status         String    @default("Queued")
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now())
+  leaseUntil     DateTime?
+  leaseToken     String?
+  firstAttemptAt DateTime?
+  sentAt         DateTime?
+  providerId     String?
+  error          String?
+  createdAt      DateTime  @default(now())
+}
+
+model MpesaSandboxAttempt {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  parent         String    @db.ObjectId
+  invoice        String    @db.ObjectId
+  phone          String
+  amount         Int
+  requestKey     String
+  throttleBucket Int
+  callbackHash   String
+  checkoutId     String?
+  merchantId     String?
+  status         String    @default("Requesting")
+  resultCode     String?
+  lastCheckedAt  DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@unique([parent, requestKey])
+  @@unique([parent, throttleBucket])
+  @@map("mpesasandboxattempts")
+}
+
+model AdmissionCounter {
+  id       String @id @map("_id")
+  sequence Int    @default(0)
+
+  @@map("admissioncounters")
+}
+
+model RateLimit {
+  id        String   @id @map("_id")
+  count     Int
+  expiresAt DateTime
+
+  @@map("request_limits")
+}

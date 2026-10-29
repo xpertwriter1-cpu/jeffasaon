@@ -1,0 +1,14 @@
+.report-comments { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media print {
+  @page { size: A4; margin: 15mm; }
+  .top-strip, nav, footer, .no-print { display: none !important; }
+  body { color: #000; background: #fff; font-family: Arial, sans-serif; }
+  .print-document { padding: 0; max-width: none; width: 100%; }
+  .print-document h1 { font-size: 26pt; }
+  .print-document h2 { font-size: 17pt; }
+  .print-document .table-card { border: 1px solid #aaa; border-radius: 0; box-shadow: none; padding: 12px; }
+  .print-document table { width: 100%; border-collapse: collapse; }
+  .print-document td, .print-document th { padding: 8px; border-bottom: 1px solid #ddd; text-align: left; }
+  tr { break-inside: avoid; }
+  thead { display: table-header-group; }
+}
