@@ -75,7 +75,7 @@ export async function alertParents(
     { subject, text, source },
   );
 }
-async function send(job: {
+export async function sendNow(job: {
   id: string;
   channel: string;
   to: string;
@@ -201,7 +201,7 @@ export async function processOneMessage() {
   });
   if (!claimed.count) return true;
   try {
-    const providerId = await send(candidate);
+    const providerId = await sendNow(candidate);
     await db.outboundMessage.updateMany({
       where: { id: candidate.id, leaseToken },
       data: { status: 'Sent', sentAt: new Date(), providerId, error: null },

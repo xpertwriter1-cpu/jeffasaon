@@ -158,6 +158,13 @@ const indexes = [
     ],
   },
   {
+    createIndexes: 'password_resets',
+    indexes: [
+      { key: { tokenHash: 1 }, name: 'tokenHash_1', unique: true },
+      { key: { expiresAt: 1 }, name: 'expiresAt_1', expireAfterSeconds: 86400 },
+    ],
+  },
+  {
     createIndexes: 'request_limits',
     indexes: [{ key: { expiresAt: 1 }, name: 'expiresAt_ttl', expireAfterSeconds: 0 }],
   },

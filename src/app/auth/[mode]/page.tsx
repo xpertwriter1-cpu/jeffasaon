@@ -65,6 +65,7 @@ export default async function AuthPage({
             ? 'Already have an account? Sign in'
             : 'New parent? Create an account'}
         </Link>
+        {!registering && <Link href="/auth/forgot">Forgot password?</Link>}
         <Link href="/">Back to home</Link>
       </div>
       <p className="small-text muted">
