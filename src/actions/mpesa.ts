@@ -8,7 +8,7 @@ import { objectId, strings, UserError } from '@/lib/validation';
 import { normalizePhone } from '@/lib/mpesa-sandbox';
 import { darajaConfig, stkPush, stkQuery } from '@/lib/mpesa-live';
 import { tokenHash } from '@/lib/mpesa-confirm';
-import { invoiceTotals } from '@/lib/invoice-totals';
+import { invoiceSummary } from '@/lib/invoice-totals';
 import { limitRequests } from '@/lib/rate-limit';
 export async function startMpesa(_state: FormState, form: FormData) {
   return runForm(form, async () => {
@@ -46,13 +46,11 @@ export async function startMpesa(_state: FormState, form: FormData) {
     if (!invoice || !student)
       throw new UserError('Choose an invoice for your admitted child.');
     const payments = await db.payment.findMany({ where: { invoice: invoice.id } });
-    const { balance } = invoiceTotals(invoice, payments);
-    if (values.amount > Math.ceil(balance))
-      throw new UserError(
-        'The amount is more than the outstanding balance of KES ' +
-          balance.toFixed(2) +
-          '.',
-      );
+    // Instalments: any whole-shilling amount up to what is still owed.
+    const { payable } = invoiceSummary(invoice, payments);
+    if (payable <= 0) throw new UserError('Nothing is left to pay on this invoice.');
+    if (values.amount > Math.ceil(payable))
+      throw new UserError('The most you can pay now is KES ' + payable.toFixed(2) + '.');
     const token = randomBytes(32).toString('hex');
     const request = await db.mpesaRequest.create({
       data: {

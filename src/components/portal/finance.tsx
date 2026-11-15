@@ -8,7 +8,7 @@ import { PageTitle } from '@/components/portal-shell';
 import { PrintButton } from '@/components/print-button';
 import { createInvoice, submitPayment, verifyPayment } from '@/actions/records';
 import { currency, date, feeLabels } from '@/lib/school';
-import { invoiceTotals } from '@/lib/invoice-totals';
+import { invoiceTotals, invoiceSummary } from '@/lib/invoice-totals';
 import { objectId } from '@/lib/validation';
 import { SandboxPanel } from './sandbox';
 import { MpesaPanel, MpesaRequests } from './mpesa';
@@ -127,7 +127,7 @@ export async function FeesPage({
             <tbody>
               {invoices.map((invoice) => {
                 const student = students.find((item) => item.id === invoice.student);
-                const totals = invoiceTotals(invoice, payments);
+                const totals = invoiceSummary(invoice, payments);
                 return (
                   <tr key={invoice.id}>
                     <td>
@@ -143,8 +143,27 @@ export async function FeesPage({
                       ))}
                     </td>
                     <td>{currency(totals.total)}</td>
-                    <td>{currency(totals.paid)}</td>
-                    <td>{currency(totals.balance)}</td>
+                    <td>
+                      {currency(totals.paid)}
+                      {totals.instalments > 0 && (
+                        <div className="small-text muted">
+                          {totals.instalments} instalment
+                          {totals.instalments === 1 ? '' : 's'}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      {totals.balance <= 0 ? (
+                        <span className="badge badge-good">Fully paid</span>
+                      ) : (
+                        currency(totals.balance)
+                      )}
+                      {totals.pending > 0 && (
+                        <div className="small-text muted">
+                          {currency(totals.pending)} awaiting verification
+                        </div>
+                      )}
+                    </td>
                     <td className="no-print">
                       <Link
                         href={
@@ -208,6 +227,11 @@ export async function PaymentsPage({
       </PageTitle>
       {parent && (
         <>
+          <p className="notice">
+            You can pay fees in instalments. For example, on a KES 20,000 invoice you can
+            pay KES 10,000 now; once the bursar verifies it your balance shows KES 10,000,
+            and you pay the rest later.
+          </p>
           <ActionForm action={submitPayment} label="Submit payment record">
             <div className="form-grid">
               <Field
@@ -232,14 +256,15 @@ export async function PaymentsPage({
                     return (
                       <option key={invoice.id} value={invoice.id}>
                         {student?.firstName} {student?.lastName} / {invoice.year} term{' '}
-                        {invoice.term}
+                        {invoice.term} / balance{' '}
+                        {currency(invoiceTotals(invoice, payments).balance)}
                       </option>
                     );
                   })}
               </Field>
               <Field
                 name="amount"
-                label="Amount (KES)"
+                label="Amount paid now (KES) – part payments welcome"
                 type="number"
                 min={1}
                 max={10000000}
@@ -368,6 +393,13 @@ export async function Receipt({ id, parent }: { id: string; parent: boolean }) {
     ? await db.student.findUnique({ where: { id: payment.student } })
     : null;
   if (!payment || (parent && student?.parentEmail !== user.email)) notFound();
+  const invoice = payment.invoice
+    ? await db.invoice.findUnique({ where: { id: payment.invoice } })
+    : null;
+  const invoicePayments = invoice
+    ? await db.payment.findMany({ where: { invoice: invoice.id } })
+    : [];
+  const totals = invoice ? invoiceTotals(invoice, invoicePayments) : null;
   return (
     <>
       <PageTitle title="Payment receipt" />
@@ -386,6 +418,17 @@ export async function Receipt({ id, parent }: { id: string; parent: boolean }) {
             ['Transaction reference', payment.reference || 'Cash'],
             ['Date received', date(payment.verifiedAt)],
             ['Status', payment.status],
+            ...(invoice && totals
+              ? [
+                  ['Invoice', invoice.year + ' Term ' + invoice.term],
+                  ['Invoice total', currency(totals.total)],
+                  ['Total paid to date', currency(totals.paid)],
+                  [
+                    'Balance remaining',
+                    totals.balance <= 0 ? 'Fully paid' : currency(totals.balance),
+                  ],
+                ]
+              : []),
           ].map(([label, value]) => (
             <div key={label}>
               <dt>{label}</dt>

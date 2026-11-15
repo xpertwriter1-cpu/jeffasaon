@@ -1,6 +1,7 @@
 'use server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { invoiceTotals, invoiceSummary } from '@/lib/invoice-totals';
 import { requireUser } from '@/lib/session';
 import { runForm, type FormState } from '@/lib/forms';
 import { objectId, period, money, phone, strings, UserError } from '@/lib/validation';
@@ -52,6 +53,25 @@ export async function submitPayment(_state: FormState, form: FormData) {
     const reference = (values.reference || '').toUpperCase();
     if (values.method !== 'Cash' && !reference)
       throw new UserError('Enter the transaction reference.');
+    // Instalments: any amount up to what is still owed.
+    const totals = invoiceSummary(
+      invoice,
+      await db.payment.findMany({ where: { invoice: invoice.id } }),
+    );
+    if (totals.payable <= 0)
+      throw new UserError(
+        totals.pending > 0
+          ? 'This invoice is fully covered once payments awaiting verification are confirmed.'
+          : 'This invoice is already fully paid.',
+      );
+    if (values.amount > totals.payable)
+      throw new UserError(
+        'The most you can pay now is KES ' +
+          totals.payable.toLocaleString('en-KE', { minimumFractionDigits: 2 }) +
+          (totals.pending > 0
+            ? ' (some payments are still awaiting verification).'
+            : '.'),
+      );
     await db.payment.create({
       data: {
         student: student.id,
@@ -86,6 +106,21 @@ export async function verifyPayment(_state: FormState, form: FormData) {
         (payment.method !== 'Cash' && !payment.reference))
     )
       throw new UserError('Confirm school receipt and check the transaction reference.');
+    if (values.status === 'Paid' && payment.status !== 'Paid' && payment.invoice) {
+      const invoice = await db.invoice.findUnique({ where: { id: payment.invoice } });
+      if (invoice) {
+        const totals = invoiceTotals(
+          invoice,
+          await db.payment.findMany({ where: { invoice: invoice.id } }),
+        );
+        if (Math.round(payment.amount * 100) > Math.round(totals.balance * 100))
+          throw new UserError(
+            'This payment is more than the remaining balance of KES ' +
+              totals.balance.toFixed(2) +
+              '. Mark it Refunded, or ask the parent to resubmit the correct amount.',
+          );
+      }
+    }
     await db.payment.update({
       where: { id: payment.id },
       data: {

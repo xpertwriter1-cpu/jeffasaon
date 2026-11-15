@@ -4,6 +4,7 @@ import { objectId } from './validation';
 import { callbackSchema, callbackValue, stkQuery } from './mpesa-live';
 import { alertParents } from './notify';
 import { currency } from './school';
+import { invoiceTotals } from './invoice-totals';
 export const tokenHash = (token: string) =>
   createHash('sha256').update(token).digest('hex');
 function sameHash(token: string, stored: string) {
@@ -30,7 +31,15 @@ export async function recordSuccess(
     select: { name: true },
   });
   const live = request.environment === 'production';
-  const mismatch = amount !== request.amount;
+  const invoice = await db.invoice.findUnique({ where: { id: request.invoice } });
+  const owed = invoice
+    ? invoiceTotals(
+        invoice,
+        await db.payment.findMany({ where: { invoice: invoice.id } }),
+      ).balance
+    : 0;
+  // A different amount, or more than is still owed, is held for the bursar.
+  const mismatch = amount !== request.amount || amount > owed;
   const status = review || mismatch ? 'Pending verification' : live ? 'Paid' : 'Sandbox';
   try {
     const payment = await db.payment.create({
@@ -63,7 +72,9 @@ export async function recordSuccess(
           currency(amount) +
           ' by M-PESA (receipt ' +
           receipt +
-          '). Thank you. Your receipt is in the parent portal.',
+          '). Remaining balance: ' +
+          currency(Math.max(0, owed - amount)) +
+          '. Thank you.',
         'receipt:' + payment.id,
       );
     return payment;

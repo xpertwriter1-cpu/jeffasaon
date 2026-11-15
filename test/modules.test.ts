@@ -66,3 +66,34 @@ test('CSV exports open in Excel and neutralise formulas', () => {
   assert.equal(lines[1], '"\'=HYPERLINK(""x"")",-50');
   assert.equal(lines[2], '"Wanjirũ, ""Njeri""",1200');
 });
+import { invoiceSummary as invoiceTotals } from '../src/lib/invoice-totals';
+test('instalments: balance falls as verified payments arrive', () => {
+  const invoice = {
+    id: 'i1',
+    items: [
+      { label: 'Tuition', amount: 15000 },
+      { label: 'Meals', amount: 5000 },
+    ],
+  };
+  const first = invoiceTotals(invoice, [
+    { invoice: 'i1', status: 'Paid', amount: 10000 },
+  ]);
+  assert.deepEqual(
+    [first.total, first.paid, first.balance, first.instalments],
+    [20000, 10000, 10000, 1],
+  );
+  const pending = invoiceTotals(invoice, [
+    { invoice: 'i1', status: 'Paid', amount: 10000 },
+    { invoice: 'i1', status: 'Pending verification', amount: 4000 },
+    { invoice: 'other', status: 'Paid', amount: 999 },
+  ]);
+  assert.equal(pending.balance, 10000);
+  assert.equal(pending.payable, 6000);
+  const done = invoiceTotals(invoice, [
+    { invoice: 'i1', status: 'Paid', amount: 10000 },
+    { invoice: 'i1', status: 'Paid', amount: 9999.99 },
+    { invoice: 'i1', status: 'Paid', amount: 0.01 },
+  ]);
+  assert.equal(done.balance, 0);
+  assert.equal(done.instalments, 3);
+});

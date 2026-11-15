@@ -7,7 +7,7 @@ import { ActionForm } from '@/components/action-form';
 import { Field, Hidden } from '@/components/fields';
 import { startMpesa, checkMpesa, resolveMpesa } from '@/actions/mpesa';
 import { currency, date } from '@/lib/school';
-import { invoiceTotals } from '@/lib/invoice-totals';
+import { invoiceTotals, invoiceSummary } from '@/lib/invoice-totals';
 import { time } from '@/lib/day';
 import { Table } from './ui';
 export async function MpesaPanel({
@@ -34,7 +34,7 @@ export async function MpesaPanel({
     return (
       student &&
       ['Admitted', 'Active'].includes(student.status) &&
-      invoiceTotals(invoice, payments).balance > 0
+      invoiceSummary(invoice, payments).payable > 0
     );
   });
   return (
@@ -68,7 +68,7 @@ export async function MpesaPanel({
             </Field>
             <Field
               name="amount"
-              label="Amount (KES, whole shillings)"
+              label="Amount to pay now (KES, part payments welcome)"
               type="number"
               min={1}
               max={250000}
