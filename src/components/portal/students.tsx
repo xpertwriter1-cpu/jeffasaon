@@ -15,6 +15,7 @@ import {
   approveAdmission,
   changeStudentStatus,
 } from '@/actions/admissions';
+import { saveLearnerRecord } from '@/actions/school';
 export async function AdmissionForm({ programme }: { programme?: string }) {
   const user = await requireUser(['parent']);
   return (
@@ -95,7 +96,9 @@ export async function AdmissionForm({ programme }: { programme?: string }) {
   );
 }
 export async function StudentRegister({ approvals = false }: { approvals?: boolean }) {
-  const user = await requireUser(approvals ? ['admin'] : ['admin', 'teacher', 'bursar']);
+  const user = await requireUser(
+    approvals ? ['admin'] : ['admin', 'headteacher', 'teacher', 'caregiver', 'bursar'],
+  );
   const students = await db.student.findMany({
     where: approvals ? { status: 'Pending' } : {},
     orderBy: { createdAt: approvals ? 'asc' : 'desc' },
@@ -172,12 +175,17 @@ export async function StudentRegister({ approvals = false }: { approvals?: boole
   );
 }
 export async function StudentRecord({ id, parent }: { id: string; parent: boolean }) {
-  const user = await requireUser(parent ? ['parent'] : ['admin', 'teacher']);
+  const user = await requireUser(
+    parent ? ['parent'] : ['admin', 'headteacher', 'teacher', 'caregiver'],
+  );
   if (!objectId.safeParse(id).success) notFound();
   const student = await db.student.findFirst({
     where: { id, ...(parent ? { parentEmail: user.email } : {}) },
   });
   if (!student) notFound();
+  const schoolClass = student.classId
+    ? await db.schoolClass.findUnique({ where: { id: student.classId } })
+    : null;
   return (
     <>
       <PageTitle title={student.firstName + ' ' + student.lastName}>
@@ -213,6 +221,61 @@ export async function StudentRecord({ id, parent }: { id: string; parent: boolea
           )}
         </div>
       )}
+      <section className="record-card">
+        <h2 className="h3">School record</h2>
+        <dl className="record-details">
+          <div>
+            <dt>Class</dt>
+            <dd>{schoolClass?.name || 'Not yet allocated'}</dd>
+          </div>
+          <div>
+            <dt>UPI / NEMIS number</dt>
+            <dd>{student.upiNumber || 'Not recorded'}</dd>
+          </div>
+        </dl>
+        <p className="no-print">
+          <Link href={parent ? '/parent/health' : '/admin/health?student=' + id}>
+            Health and consent
+          </Link>
+          {' · '}
+          <Link href={parent ? '/parent/pickups' : '/admin/pickup'}>
+            Authorised collectors
+          </Link>
+          {' · '}
+          <Link
+            href={
+              parent
+                ? '/parent/attendance'
+                : '/admin/attendance?level=' + student.classLevel
+            }
+          >
+            Attendance
+          </Link>
+        </p>
+        {!parent && ['admin', 'headteacher'].includes(user.role) && (
+          <ActionForm
+            action={saveLearnerRecord}
+            label="Save learner record"
+            className="stack"
+          >
+            <Hidden name="id" value={id} />
+            <div className="form-grid">
+              <Field
+                name="upiNumber"
+                label="UPI / NEMIS number"
+                maxLength={30}
+                defaultValue={student.upiNumber ?? ''}
+              />
+              <Field
+                name="birthCertificateNumber"
+                label="Birth certificate number"
+                maxLength={40}
+                defaultValue={student.birthCertificateNumber ?? ''}
+              />
+            </div>
+          </ActionForm>
+        )}
+      </section>
       {admissionGroups.map((group) => (
         <section className="record-card" key={group.title}>
           <h2 className="h3">{group.title}</h2>

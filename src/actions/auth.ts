@@ -14,7 +14,7 @@ import {
 } from '@/lib/validation';
 import { runForm, type FormState } from '@/lib/forms';
 import { limitRequests } from '@/lib/rate-limit';
-import { programmes, roles } from '@/lib/school';
+import { programmes, roles, staffRoles } from '@/lib/school';
 function destination(role: string, programme?: string) {
   return role === 'parent'
     ? programmes.includes(programme as (typeof programmes)[number])
@@ -85,13 +85,17 @@ export async function createStaff(_state: FormState, form: FormData) {
         name: z.string().min(1).max(200),
         email,
         password,
-        role: z.enum(['admin', 'teacher', 'bursar']),
+        role: z.enum(staffRoles),
+        phone: phone.optional().or(z.literal('').transform(() => undefined)),
       })
       .parse({ ...strings(form), password: formPassword(form) });
+    if (await db.user.findUnique({ where: { email: values.email } }))
+      throw new UserError('An account with that email already exists.');
     await db.user.create({
       data: {
         name: values.name,
         email: values.email,
+        phone: values.phone,
         role: values.role,
         passwordHash: await bcrypt.hash(values.password, 12),
       },

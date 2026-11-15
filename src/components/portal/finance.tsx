@@ -11,6 +11,8 @@ import { currency, date, feeLabels } from '@/lib/school';
 import { invoiceTotals } from '@/lib/invoice-totals';
 import { objectId } from '@/lib/validation';
 import { SandboxPanel } from './sandbox';
+import { MpesaPanel, MpesaRequests } from './mpesa';
+import { FeeStructures } from './settings';
 export async function FeesPage({
   parent,
   studentId,
@@ -18,7 +20,9 @@ export async function FeesPage({
   parent: boolean;
   studentId?: string;
 }) {
-  const user = await requireUser(parent ? ['parent'] : ['admin', 'bursar']);
+  const user = await requireUser(
+    parent ? ['parent'] : ['admin', 'bursar', 'headteacher'],
+  );
   if (studentId && !objectId.safeParse(studentId).success) notFound();
   const students = await db.student.findMany({
     where: {
@@ -65,8 +69,9 @@ export async function FeesPage({
           <PrintButton />
         </>
       )}
-      {!parent && !studentId && (
-        <ActionForm action={createInvoice} label="Create term invoice">
+      {!parent && !studentId && <FeeStructures />}
+      {!parent && !studentId && user.role !== 'headteacher' && (
+        <ActionForm action={createInvoice} label="Create a single term invoice">
           <div className="form-grid">
             <Field name="studentId" label="Student" required>
               <option value="">Choose a student</option>
@@ -261,9 +266,16 @@ export async function PaymentsPage({
               />
             </div>
           </ActionForm>
+          <MpesaPanel
+            invoices={invoices}
+            payments={payments}
+            students={students}
+            selectedInvoice={selectedInvoice}
+          />
           <SandboxPanel invoices={invoices} students={students} />
         </>
       )}
+      {!parent && <MpesaRequests />}
       {payments.length ? (
         <div className="table-wrap">
           <table>

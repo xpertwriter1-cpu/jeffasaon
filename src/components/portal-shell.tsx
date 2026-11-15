@@ -1,33 +1,27 @@
 import Link from 'next/link';
 import { UnreadCount } from './unread-count';
+import { canView, modules, type ModuleName } from '@/lib/permissions';
+const parentLinks = [
+  ['dashboard', 'Overview'],
+  ['attendance', 'Attendance'],
+  ['daily', 'Daily care'],
+  ['learning', 'Learning'],
+  ['messages', 'Messages'],
+  ['pickups', 'Collection'],
+  ['health', 'Health & consent'],
+  ['timetable', 'Timetable'],
+  ['fees', 'Fees'],
+  ['payments', 'Payments'],
+  ['reports', 'Report cards'],
+  ['admission', 'New application'],
+];
 export function PortalNav({ role }: { role: string }) {
   const parent = role === 'parent';
   const links = parent
-    ? [
-        ['dashboard', 'Overview'],
-        ['admission', 'New application'],
-        ['fees', 'Fee balances'],
-        ['payments', 'Payments'],
-        ['reports', 'Reports'],
-      ]
-    : [
-        ['dashboard', 'Overview'],
-        ['students', 'Students'],
-        ...(['admin'].includes(role)
-          ? [
-              ['admissions', 'Admission approvals'],
-              ['enquiries', 'Enquiries'],
-              ['users', 'Staff accounts'],
-            ]
-          : []),
-        ...(['admin', 'bursar'].includes(role)
-          ? [
-              ['fees', 'Fees'],
-              ['payments', 'Payments'],
-            ]
-          : []),
-        ...(['admin', 'teacher'].includes(role) ? [['reports', 'Reports']] : []),
-      ];
+    ? parentLinks
+    : (Object.keys(modules) as ModuleName[])
+        .filter((name) => canView(role, name))
+        .map((name) => [name, modules[name].label]);
   return (
     <nav className="portal-nav no-print" aria-label="School portal">
       {links.map(([path, label]) => (

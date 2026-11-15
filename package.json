@@ -19,7 +19,9 @@
     "mail:worker": "tsx scripts/mail-worker.ts",
     "db:verify": "tsx scripts/verify-database.ts",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"scripts/*.ts\" \"test/*.ts\" next.config.ts tsconfig.json package.json pnpm-workspace.yaml && prisma format",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"scripts/*.ts\" \"test/*.ts\" next.config.ts tsconfig.json package.json pnpm-workspace.yaml"
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"scripts/*.ts\" \"test/*.ts\" next.config.ts tsconfig.json package.json pnpm-workspace.yaml",
+    "db:backup": "tsx scripts/backup.ts",
+    "worker": "tsx scripts/mail-worker.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

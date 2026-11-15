@@ -4,7 +4,8 @@ import { db } from '@/lib/db';
 import { requireUser } from '@/lib/session';
 import { runForm, type FormState } from '@/lib/forms';
 import { objectId, period, money, phone, strings, UserError } from '@/lib/validation';
-import { areas, ratings, feeLabels } from '@/lib/school';
+import { feeLabels } from '@/lib/school';
+import { reportAreasFor, reportRatingsFor } from '@/lib/cbc';
 const eligible = ['Admitted', 'Active'];
 export async function createInvoice(_state: FormState, form: FormData) {
   return runForm(form, async () => {
@@ -102,7 +103,7 @@ export async function verifyPayment(_state: FormState, form: FormData) {
 }
 export async function saveReport(_state: FormState, form: FormData) {
   return runForm(form, async () => {
-    const user = await requireUser(['admin', 'teacher']);
+    const user = await requireUser(['admin', 'headteacher', 'teacher']);
     const values = strings(form);
     const term = period.parse(values);
     const studentId = objectId.parse(values.studentId);
@@ -115,14 +116,15 @@ export async function saveReport(_state: FormState, form: FormData) {
       .parse(values);
     if (attendance.daysPresent > attendance.daysPossible)
       throw new UserError('Days present cannot exceed possible school days.');
-    const assessments = areas.map((area, index) => {
+    const student = await db.student.findUnique({ where: { id: studentId } });
+    if (!student) throw new UserError('Student not found.');
+    const ratings = reportRatingsFor(student.classLevel);
+    const assessments = reportAreasFor(student.classLevel).map((area, index) => {
       const rating = values['rating' + index];
       if (!rating || !ratings.includes(rating))
         throw new UserError('Rate every learning area.');
       return { area, rating };
     });
-    const student = await db.student.findUnique({ where: { id: studentId } });
-    if (!student) throw new UserError('Student not found.');
     const data = {
       student: studentId,
       classLevel: student.classLevel,
@@ -137,7 +139,7 @@ export async function saveReport(_state: FormState, form: FormData) {
       if (
         !existing ||
         existing.status !== 'Draft' ||
-        (user.role !== 'admin' && existing.teacher !== user.id)
+        (!['admin', 'headteacher'].includes(user.role) && existing.teacher !== user.id)
       )
         throw new UserError('You can only edit your own draft reports.');
       if (existing.student !== studentId)
@@ -157,7 +159,7 @@ export async function saveReport(_state: FormState, form: FormData) {
 }
 export async function publishReport(_state: FormState, form: FormData) {
   return runForm(form, async () => {
-    const user = await requireUser(['admin']);
+    const user = await requireUser(['admin', 'headteacher']);
     const values = strings(form);
     const id = objectId.parse(values.id);
     const publish = values.mode === 'publish';

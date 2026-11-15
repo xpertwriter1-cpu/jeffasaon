@@ -34,9 +34,9 @@ export async function currentUser() {
   if (!session.userId || !/^[a-f\d]{24}$/i.test(session.userId)) return null;
   const user = await db.user.findUnique({
     where: { id: session.userId },
-    select: { id: true, name: true, email: true, phone: true, role: true },
+    select: { id: true, name: true, email: true, phone: true, role: true, active: true },
   });
-  return user && roles.includes(user.role as Role) ? user : null;
+  return user && user.active !== false && roles.includes(user.role as Role) ? user : null;
 }
 export async function requireUser(allowed: readonly Role[] = roles) {
   const user = await currentUser();

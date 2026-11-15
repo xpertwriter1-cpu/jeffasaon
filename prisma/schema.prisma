@@ -14,6 +14,7 @@ model User {
   phone        String?
   passwordHash String
   role         String   @default("parent")
+  active       Boolean?
   createdAt    DateTime @default(now())
 
   @@map("users")
@@ -79,6 +80,9 @@ model Student {
   activationPayment          String?             @db.ObjectId
   documents                  AdmissionDocument[]
   status                     String              @default("Pending")
+  classId                    String?             @db.ObjectId
+  upiNumber                  String?
+  dietaryRequirements        String?
   createdAt                  DateTime            @default(now())
 
   @@map("students")
@@ -234,4 +238,365 @@ model RateLimit {
   expiresAt DateTime
 
   @@map("request_limits")
+}
+
+// ---- School management modules ----
+
+model SchoolSetting {
+  id                 String   @id @map("_id")
+  name               String
+  phone              String?
+  email              String?
+  location           String?
+  county             String?
+  subCounty          String?
+  registrationNumber String?
+  currentYear        Int
+  currentTerm        Int
+  notifyAbsence      Boolean  @default(true)
+  notifyPickup       Boolean  @default(true)
+  updatedBy          String?  @db.ObjectId
+  updatedAt          DateTime @default(now())
+
+  @@map("school_settings")
+}
+
+model AcademicTerm {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  year      Int
+  term      Int
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([year, term])
+  @@map("academic_terms")
+}
+
+model LicenceRecord {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  kind       String
+  number     String?
+  issuedBy   String?
+  issueDate  DateTime?
+  expiryDate DateTime?
+  notes      String?
+  createdBy  String    @db.ObjectId
+  createdAt  DateTime  @default(now())
+
+  @@map("licence_records")
+}
+
+model SchoolClass {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  level      String
+  year       Int
+  room       String?
+  capacity   Int?
+  teachers   String[] @db.ObjectId
+  caregivers String[] @db.ObjectId
+  createdAt  DateTime @default(now())
+
+  @@unique([name, year])
+  @@map("classes")
+}
+
+model StaffProfile {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  user              String    @unique @db.ObjectId
+  phone             String?
+  idNumber          String?
+  tscNumber         String?
+  qualification     String?
+  employmentDate    DateTime?
+  emergencyContact  String?
+  goodConductExpiry DateTime?
+  medicalCertExpiry DateTime?
+  notes             String?
+  updatedAt         DateTime  @default(now())
+
+  @@map("staff_profiles")
+}
+
+model StaffAttendance {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  user       String    @db.ObjectId
+  day        String
+  status     String
+  checkInAt  DateTime?
+  checkOutAt DateTime?
+  recordedBy String    @db.ObjectId
+
+  @@unique([user, day])
+  @@map("staff_attendance")
+}
+
+model Attendance {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  student       String    @db.ObjectId
+  day           String
+  classLevel    String
+  status        String
+  checkInAt     DateTime?
+  checkInBy     String?   @db.ObjectId
+  droppedOffBy  String?
+  checkOutAt    DateTime?
+  checkOutBy    String?   @db.ObjectId
+  pickupRecord  String?   @db.ObjectId
+  absenceReason String?
+  notes         String?
+  updatedAt     DateTime  @default(now())
+
+  @@unique([student, day])
+  @@map("attendance")
+}
+
+model AuthorizedPickup {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  student      String    @db.ObjectId
+  name         String
+  relationship String
+  phone        String
+  idLast4      String
+  idHash       String
+  status       String    @default("Pending")
+  requestedBy  String    @db.ObjectId
+  approvedBy   String?   @db.ObjectId
+  approvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@map("authorized_pickups")
+}
+
+model PickupRecord {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  student       String   @db.ObjectId
+  day           String
+  pickupPerson  String?  @db.ObjectId
+  collectorName String
+  relationship  String?
+  verification  String
+  outcome       String
+  notes         String?
+  verifiedBy    String   @db.ObjectId
+  at            DateTime @default(now())
+
+  @@map("pickup_records")
+}
+
+model FeeStructure {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  year       Int
+  term       Int
+  classLevel String
+  items      FeeItem[]
+  createdBy  String    @db.ObjectId
+  createdAt  DateTime  @default(now())
+
+  @@unique([year, term, classLevel])
+  @@map("fee_structures")
+}
+
+model MpesaRequest {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  parent         String    @db.ObjectId
+  invoice        String    @db.ObjectId
+  student        String    @db.ObjectId
+  phone          String
+  amount         Int
+  environment    String
+  requestKey     String
+  throttleBucket Int
+  callbackHash   String
+  checkoutId     String?
+  merchantId     String?
+  status         String    @default("Requesting")
+  resultCode     String?
+  resultDesc     String?
+  receiptNumber  String?
+  payment        String?   @db.ObjectId
+  lastCheckedAt  DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@unique([parent, requestKey])
+  @@unique([parent, throttleBucket])
+  @@map("mpesa_requests")
+}
+
+model CareLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  student   String   @db.ObjectId
+  day       String
+  kind      String
+  at        DateTime
+  details   String?
+  amount    String?
+  by        String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  @@map("care_logs")
+}
+
+model MealPlan {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  day        String
+  classLevel String
+  meal       String
+  menu       String
+  notes      String?
+  createdBy  String   @db.ObjectId
+  createdAt  DateTime @default(now())
+
+  @@unique([day, classLevel, meal])
+  @@map("meal_plans")
+}
+
+model Lesson {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  classLevel   String
+  day          String
+  learningArea String
+  strand       String
+  subStrand    String?
+  title        String
+  outcomes     String?
+  activities   String?
+  resources    String?
+  reflection   String?
+  by           String   @db.ObjectId
+  createdAt    DateTime @default(now())
+
+  @@map("lessons")
+}
+
+model Observation {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  student          String   @db.ObjectId
+  day              String
+  learningArea     String
+  note             String
+  sharedWithParent Boolean  @default(false)
+  by               String   @db.ObjectId
+  createdAt        DateTime @default(now())
+
+  @@map("observations")
+}
+
+model CompetencyAssessment {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  student      String   @db.ObjectId
+  year         Int
+  term         Int
+  learningArea String
+  strand       String
+  level        String
+  comment      String?
+  assessedOn   DateTime
+  by           String   @db.ObjectId
+  createdAt    DateTime @default(now())
+
+  @@map("competency_assessments")
+}
+
+model Announcement {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  title      String
+  body       String
+  audience   String
+  classLevel String?
+  channels   String[]
+  recipients Int      @default(0)
+  createdBy  String   @db.ObjectId
+  createdAt  DateTime @default(now())
+
+  @@map("announcements")
+}
+
+model OutboundMessage {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  channel       String
+  to            String
+  subject       String?
+  text          String
+  source        String
+  status        String    @default("Queued")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  leaseUntil    DateTime?
+  leaseToken    String?
+  providerId    String?
+  error         String?
+  sentAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@map("outbound_messages")
+}
+
+model Immunization {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  student   String    @db.ObjectId
+  vaccine   String
+  doseDate  DateTime
+  nextDue   DateTime?
+  cardSeen  Boolean   @default(false)
+  by        String    @db.ObjectId
+  createdAt DateTime  @default(now())
+
+  @@map("immunizations")
+}
+
+model MedicationLog {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  student       String   @db.ObjectId
+  medicine      String
+  dose          String
+  givenAt       DateTime
+  parentConsent Boolean
+  notes         String?
+  by            String   @db.ObjectId
+  createdAt     DateTime @default(now())
+
+  @@map("medication_logs")
+}
+
+model Incident {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  student          String?   @db.ObjectId
+  occurredAt       DateTime
+  kind             String
+  severity         String
+  description      String
+  actionTaken      String
+  parentNotifiedAt DateTime?
+  status           String    @default("Open")
+  reportedBy       String    @db.ObjectId
+  closedBy         String?   @db.ObjectId
+  createdAt        DateTime  @default(now())
+
+  @@map("incidents")
+}
+
+model TimetableSlot {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  classLevel   String
+  weekday      Int
+  start        String
+  end          String
+  activity     String
+  learningArea String?
+  createdAt    DateTime @default(now())
+
+  @@map("timetable_slots")
+}
+
+model Consent {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  student    String   @db.ObjectId
+  kind       String
+  granted    Boolean
+  recordedBy String   @db.ObjectId
+  recordedAt DateTime @default(now())
+
+  @@map("consents")
 }

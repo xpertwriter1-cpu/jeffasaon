@@ -7,10 +7,22 @@ import { Field, Hidden } from '@/components/fields';
 import { PageTitle } from '@/components/portal-shell';
 import { PrintButton } from '@/components/print-button';
 import { saveReport, publishReport } from '@/actions/records';
-import { areas, ratings, date } from '@/lib/school';
+import { date } from '@/lib/school';
+import {
+  reportAreasFor,
+  reportRatingsFor,
+  cbcLevels,
+  coreCompetencies,
+  isCbcLevel,
+} from '@/lib/cbc';
+import { getSettings } from '@/lib/settings';
+import { nairobiDay } from '@/lib/day';
 import { objectId } from '@/lib/validation';
 export async function ReportsPage({ parent }: { parent: boolean }) {
-  const user = await requireUser(parent ? ['parent'] : ['admin', 'teacher']);
+  const user = await requireUser(
+    parent ? ['parent'] : ['admin', 'headteacher', 'teacher'],
+  );
+  const leader = ['admin', 'headteacher'].includes(user.role);
   const students = await db.student.findMany({
     where: parent ? { parentEmail: user.email } : {},
     select: { id: true, firstName: true, lastName: true },
@@ -27,7 +39,7 @@ export async function ReportsPage({ parent }: { parent: boolean }) {
       <PageTitle title="Learning reports">
         {parent
           ? 'Reports become visible here after school approval.'
-          : 'Prepare a draft. Only an administrator can publish it.'}
+          : 'Prepare a draft. Only the headteacher or an administrator can publish it.'}
       </PageTitle>
       {!parent && (
         <Link className="button" href="/admin/reports/new">
@@ -69,7 +81,7 @@ export async function ReportsPage({ parent }: { parent: boolean }) {
                       </Link>
                       {!parent &&
                         report.status === 'Draft' &&
-                        (user.role === 'admin' || report.teacher === user.id) && (
+                        (leader || report.teacher === user.id) && (
                           <>
                             {' '}
                             /{' '}
@@ -78,7 +90,7 @@ export async function ReportsPage({ parent }: { parent: boolean }) {
                             </Link>
                           </>
                         )}
-                      {user.role === 'admin' && (
+                      {leader && (
                         <ActionForm
                           action={publishReport}
                           className="stack"
@@ -106,35 +118,109 @@ export async function ReportsPage({ parent }: { parent: boolean }) {
     </>
   );
 }
-export async function ReportForm({ id }: { id?: string }) {
-  const user = await requireUser(['admin', 'teacher']);
+export async function ReportForm({ id, studentId }: { id?: string; studentId?: string }) {
+  const user = await requireUser(['admin', 'headteacher', 'teacher']);
   if (id && !objectId.safeParse(id).success) notFound();
   const report = id ? await db.report.findUnique({ where: { id } }) : null;
   if (
     id &&
     (!report ||
       report.status !== 'Draft' ||
-      (user.role !== 'admin' && report.teacher !== user.id))
+      (!['admin', 'headteacher'].includes(user.role) && report.teacher !== user.id))
   )
     notFound();
-  const students = await db.student.findMany({
-    where: report ? { id: report.student } : { status: { in: ['Admitted', 'Active'] } },
-    select: { id: true, firstName: true, lastName: true },
+  const chosen =
+    report?.student ??
+    (studentId && objectId.safeParse(studentId).success ? studentId : undefined);
+  const student = chosen ? await db.student.findUnique({ where: { id: chosen } }) : null;
+  if (!student) {
+    const students = await db.student.findMany({
+      where: { status: { in: ['Admitted', 'Active'] } },
+      orderBy: [{ classLevel: 'asc' }, { firstName: 'asc' }],
+      select: { id: true, firstName: true, lastName: true, classLevel: true },
+    });
+    return (
+      <>
+        <PageTitle title="New learning report">
+          Choose the learner first. The report uses the learning areas for their level.
+        </PageTitle>
+        <form method="get" className="filter-bar">
+          <label className="field">
+            <span>Learner</span>
+            <select name="student" required defaultValue="">
+              <option value="">Choose a learner</option>
+              {students.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.firstName} {item.lastName} ({item.classLevel})
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="button">Continue</button>
+        </form>
+      </>
+    );
+  }
+  const settings = await getSettings();
+  const year = report?.year ?? settings.currentYear;
+  const term = report?.term ?? settings.currentTerm;
+  const termDates = await db.academicTerm.findUnique({
+    where: { year_term: { year, term } },
   });
+  const attendance = termDates
+    ? await db.attendance.findMany({
+        where: {
+          student: student.id,
+          day: {
+            gte: nairobiDay(termDates.startDate),
+            lte: nairobiDay(termDates.endDate),
+          },
+        },
+        select: { status: true },
+      })
+    : [];
+  const suggestedPresent = attendance.filter(
+    (record) => record.status !== 'Absent',
+  ).length;
+  const assessments = await db.competencyAssessment.findMany({
+    where: { student: student.id, year, term },
+    orderBy: { assessedOn: 'desc' },
+  });
+  const areas = reportAreasFor(student.classLevel);
+  const ratings = reportRatingsFor(student.classLevel);
   return (
     <>
-      <PageTitle title={report ? 'Edit learning report' : 'New learning report'} />
+      <PageTitle
+        title={
+          (report ? 'Edit' : 'New') +
+          ' learning report · ' +
+          student.firstName +
+          ' ' +
+          student.lastName
+        }
+      >
+        {student.classLevel} ·{' '}
+        {isCbcLevel(student.classLevel)
+          ? 'CBC learning areas and rubric'
+          : 'Early years developmental areas'}
+      </PageTitle>
+      {assessments.length > 0 && (
+        <div className="record-card">
+          <h2 className="h3">Assessments recorded this term</h2>
+          <ul className="small-text">
+            {assessments.map((item) => (
+              <li key={item.id}>
+                {item.learningArea} › {item.strand}: <strong>{item.level}</strong>
+                {item.comment ? ' — ' + item.comment : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <ActionForm action={saveReport} label="Save draft">
         {report && <Hidden name="id" value={report.id} />}
+        <Hidden name="studentId" value={student.id} />
         <div className="form-grid">
-          <Field name="studentId" label="Student" required defaultValue={report?.student}>
-            <option value="">Choose a student</option>
-            {students.map((student) => (
-              <option value={student.id} key={student.id}>
-                {student.firstName} {student.lastName}
-              </option>
-            ))}
-          </Field>
           <Field
             name="year"
             label="Year"
@@ -142,30 +228,39 @@ export async function ReportForm({ id }: { id?: string }) {
             min={2000}
             max={2100}
             required
-            defaultValue={report?.year ?? new Date().getFullYear()}
+            defaultValue={year}
           />
-          <Field name="term" label="Term" defaultValue={report?.term} required>
-            {[1, 2, 3].map((term) => (
-              <option key={term}>{term}</option>
+          <Field name="term" label="Term" defaultValue={term} required>
+            {[1, 2, 3].map((item) => (
+              <option key={item}>{item}</option>
             ))}
           </Field>
           <Field
             name="daysPresent"
-            label="Days present"
+            label={
+              'Days present' + (termDates ? ' (register: ' + suggestedPresent + ')' : '')
+            }
             type="number"
             min={0}
             max={366}
             required
-            defaultValue={report?.daysPresent}
+            defaultValue={
+              report?.daysPresent ?? (termDates ? suggestedPresent : undefined)
+            }
           />
           <Field
             name="daysPossible"
-            label="Possible school days"
+            label={
+              'Possible school days' +
+              (termDates ? ' (register: ' + attendance.length + ')' : '')
+            }
             type="number"
             min={0}
             max={366}
             required
-            defaultValue={report?.daysPossible}
+            defaultValue={
+              report?.daysPossible ?? (termDates ? attendance.length : undefined)
+            }
           />
           {areas.map((area, index) => (
             <Field
@@ -186,7 +281,7 @@ export async function ReportForm({ id }: { id?: string }) {
         </div>
         <Field
           name="comments"
-          label="Teacher comments"
+          label="Teacher comments (strengths, core competencies and next steps)"
           type="textarea"
           maxLength={3000}
           defaultValue={report?.comments ?? ''}
@@ -196,7 +291,7 @@ export async function ReportForm({ id }: { id?: string }) {
   );
 }
 export async function ReportView({ id, parent }: { id: string; parent: boolean }) {
-  await requireUser(parent ? ['parent'] : ['admin', 'teacher']);
+  await requireUser(parent ? ['parent'] : ['admin', 'headteacher', 'teacher']);
   const user = await requireUser();
   if (!objectId.safeParse(id).success) notFound();
   const report = await db.report.findUnique({ where: { id } });
@@ -211,6 +306,10 @@ export async function ReportView({ id, parent }: { id: string; parent: boolean }
   const teacher = await db.user.findUnique({
     where: { id: report.teacher },
     select: { name: true },
+  });
+  const strands = await db.competencyAssessment.findMany({
+    where: { student: student.id, year: report.year, term: report.term },
+    orderBy: [{ learningArea: 'asc' }, { assessedOn: 'asc' }],
   });
   return (
     <>
@@ -237,6 +336,42 @@ export async function ReportView({ id, parent }: { id: string; parent: boolean }
           ))}
         </dl>
       </div>
+      {strands.length > 0 && (
+        <div className="record-card">
+          <h2 className="h3">Strand assessments</h2>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Learning area</th>
+                  <th>Strand</th>
+                  <th>Level</th>
+                  <th>Comment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {strands.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.learningArea}</td>
+                    <td>{item.strand}</td>
+                    <td>
+                      {cbcLevels.find((level) => level.code === item.level)?.label ||
+                        item.level}
+                    </td>
+                    <td>{item.comment || ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {isCbcLevel(report.classLevel) && (
+            <p className="small-text muted">
+              Core competencies developed through these activities:{' '}
+              {coreCompetencies.join(', ')}.
+            </p>
+          )}
+        </div>
+      )}
       <div className="record-card">
         <h2 className="h3">Attendance and comments</h2>
         <p>

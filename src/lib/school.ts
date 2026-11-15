@@ -5,7 +5,21 @@ export const school = {
   location: process.env.SCHOOL_LOCATION || 'Rongai, Kenya',
 };
 export const programmes = ['Daycare', 'Playgroup', 'PP1', 'PP2'] as const;
-export const roles = ['parent', 'admin', 'teacher', 'bursar'] as const;
+export const roles = [
+  'parent',
+  'admin',
+  'headteacher',
+  'teacher',
+  'caregiver',
+  'bursar',
+] as const;
+export const staffRoles = [
+  'admin',
+  'headteacher',
+  'teacher',
+  'caregiver',
+  'bursar',
+] as const;
 export type Role = (typeof roles)[number];
 export const areas = [
   'Language',

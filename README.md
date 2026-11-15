@@ -41,13 +41,17 @@ The Prisma schema maps to the existing `users`, `students`, `invoices`, `payment
 - `pnpm db:indexes` creates missing indexes without dropping collections, data or existing indexes. It also adds an expiring request-limit collection.
 - Do not run `prisma migrate` for MongoDB. Do not use `prisma db push` on this existing database without reviewing its effect on legacy sparse unique indexes. The explicit index script preserves those indexes.
 
+## School management modules
+
+See [SCHOOL-MANAGEMENT-GUIDE.md](SCHOOL-MANAGEMENT-GUIDE.md) for setup, the 20 modules, child-collection safety rules, M-PESA go-live, notifications, CBC assessment, data protection and backups. After pulling this version run `pnpm install` and `pnpm db:indexes`.
+
 ## School workflows
 
 The public site is one scrolling page: `/#home`, `/#about`, `/#programs`, `/#admissions` and `/#contact`. Old public page URLs redirect to their matching sections.
 
 Parents use `/auth/register`, `/auth/login`, `/parent/dashboard`, `/parent/admission`, `/parent/fees`, `/parent/payments` and `/parent/reports`. Programme selection is carried through sign-in and registration. Existing accounts continue to use their stored passwords; the session cookie changes, so users must sign in again.
 
-Staff use `/admin/dashboard`, `/admin/students`, `/admin/admissions`, `/admin/fees`, `/admin/payments`, `/admin/reports`, `/admin/enquiries` and `/admin/users`. Each page and server action checks its permitted roles. Parents can only view their own child records, documents, invoices, payments and published reports.
+Staff use `/admin/dashboard` and the module pages listed in [SCHOOL-MANAGEMENT-GUIDE.md](SCHOOL-MANAGEMENT-GUIDE.md): students, admissions, classes, attendance, pickup, fees, payments, teachers, daycare, learning, assessment, reports, communication, meals, health, timetable, analytics, compliance, enquiries, users and settings. Roles are administrator, headteacher, teacher, caregiver and bursar. Each page and server action checks its permitted roles. Parents can only view their own child records, documents, invoices, payments and published reports.
 
 Admission proceeds from application to parent acceptance, admin approval, invoicing, verified fees, and activation. Payment claims do not change balances until verified. Sandbox M-Pesa attempts never count as real payments. Teachers prepare reports; only admins publish them. Final student records cannot be reopened through a status update.
 
@@ -80,7 +84,7 @@ Passwords are not printed. Existing accounts are left unchanged.
 
 ## Deployment
 
-Run `pnpm build` and `pnpm start` over HTTPS. Supply a strong SESSION_SECRET and DATABASE_URL. Set TRUST_PROXY=1 only when the hosting proxy overwrites the forwarded client address. Otherwise anonymous request limits share one origin bucket. Rate limits are stored in MongoDB so they work across Node processes. Configure provider credentials independently; the M-Pesa integration remains sandbox-only.
+Run `pnpm build` and `pnpm start` over HTTPS. Supply a strong SESSION_SECRET and DATABASE_URL. Set TRUST_PROXY=1 only when the hosting proxy overwrites the forwarded client address. Otherwise anonymous request limits share one origin bucket. Rate limits are stored in MongoDB so they work across Node processes. Configure provider credentials independently. Live M-PESA collection is available through Daraja STK Push when `PAYMENT_MODE=mpesa` (see the guide); the older sandbox test panel remains sandbox-only. Run `pnpm worker` alongside the app for email, SMS and WhatsApp delivery.
 
 ## Photography
 

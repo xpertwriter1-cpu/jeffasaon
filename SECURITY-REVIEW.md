@@ -14,7 +14,10 @@ The active application now uses Next.js 16.4.3, React 19, strict TypeScript, Pri
 - Student activation requires a verified, invoiced payment made after admission. Approval records parent agreement and reviewer evidence. Concurrent approval and activation changes are guarded in transactions. Unique payment references and per-term indexes remain in place.
 - Report drafts are restricted to their teacher or an admin. Parents only see published reports. Only admins can publish or unpublish.
 - Email jobs use atomic leases, provider idempotency keys and bounded retry periods. Run the separate supervised worker with pnpm mail:worker.
-- M-Pesa remains sandbox-only. Callbacks use a secret token and provider reconciliation; they cannot mark real fees paid.
+- The original M-Pesa sandbox panel remains sandbox-only. Live collection uses Daraja STK Push: each request gets a 256-bit callback token stored only as a hash, callbacks must match the checkout and merchant IDs, Safaricom's status query is consulted, amounts are capped at the invoice balance, receipt numbers are unique, and mismatches are held for bursar review. Sandbox-environment payments never change balances.
+- Child collection: releases require an approved collector and a matching ID (keyed hash, last four digits displayed); refusals are logged and parents alerted. Exceptions are limited to the headteacher and administrator with a written reason.
+- Every module checks roles on the server through `src/lib/permissions.ts`. Parents only reach their own children's attendance, care logs, health, consents, collectors and messages. Deactivated accounts are rejected at every request. CSV exports are role-checked, not cached, and neutralise spreadsheet formulas.
+- Safeguarding concerns are not sent to parents automatically and are hidden from the parent health view.
 - Administrator seeding requires a supplied password and does not print it. Existing accounts and passwords are unchanged.
 
 ## Database work performed
