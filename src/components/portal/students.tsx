@@ -14,6 +14,7 @@ import {
   acceptEnrolment,
   approveAdmission,
   changeStudentStatus,
+  approveOnPaperConsent,
 } from '@/actions/admissions';
 import { saveLearnerRecord } from '@/actions/school';
 export async function AdmissionForm({ programme }: { programme?: string }) {
@@ -159,7 +160,46 @@ export async function StudentRegister({ approvals = false }: { approvals?: boole
                           <Check name="confirmReview">I reviewed the child record.</Check>
                         </ActionForm>
                       ) : (
-                        <span>Awaiting parent agreement</span>
+                        <>
+                          <span>Awaiting parent agreement online</span>
+                          <details>
+                            <summary className="small-text">
+                              Admit on signed paper agreement
+                            </summary>
+                            <ActionForm
+                              action={approveOnPaperConsent}
+                              label="Admit on paper consent"
+                              className="stack"
+                            >
+                              <Hidden name="id" value={student.id} />
+                              <Field
+                                name="signedBy"
+                                label="Signed by (parent / guardian name)"
+                                required
+                                maxLength={120}
+                              />
+                              <Field
+                                name="signedOn"
+                                label="Date signed"
+                                type="date"
+                                required
+                              />
+                              <Field
+                                name="reference"
+                                label="Where the signed copy is filed"
+                                required
+                                maxLength={120}
+                              />
+                              <Check name="confirmPaper">
+                                The parent signed the printed enrolment agreement (
+                                {agreementVersion}).
+                              </Check>
+                              <Check name="confirmReview">
+                                I reviewed the child record.
+                              </Check>
+                            </ActionForm>
+                          </details>
+                        </>
                       )
                     ) : (
                       student.admissionNumber || 'Pending'

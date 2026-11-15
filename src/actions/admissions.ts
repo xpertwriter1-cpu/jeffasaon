@@ -154,6 +154,76 @@ export async function approveAdmission(_state: FormState, form: FormData) {
     return '/admin/admissions';
   });
 }
+// For walk-in or paper applications: the parent signed the printed enrolment agreement
+// instead of accepting it online. The admin records who signed, when, and where the
+// signed copy is filed; the same admission number sequence is used.
+export async function approveOnPaperConsent(_state: FormState, form: FormData) {
+  return runForm(form, async () => {
+    const user = await requireUser(['admin']);
+    const values = strings(form);
+    const id = objectId.parse(values.id);
+    if (values.confirmReview !== 'yes' || values.confirmPaper !== 'yes')
+      throw new UserError(
+        'Confirm both boxes: the record was reviewed and the signed paper agreement is on file.',
+      );
+    const signedBy = (values.signedBy || '').slice(0, 120);
+    const reference = (values.reference || '').slice(0, 120);
+    const signedOn = values.signedOn || '';
+    if (!signedBy || !reference)
+      throw new UserError(
+        'Enter who signed the agreement and where the signed copy is filed.',
+      );
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(
+      new Date(),
+    );
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(signedOn) || signedOn > today)
+      throw new UserError('Enter the date the agreement was signed (not in the future).');
+    await db.$transaction(async (tx) => {
+      const student = await tx.student.findUnique({ where: { id } });
+      if (!student || student.status !== 'Pending')
+        throw new UserError('This application is no longer pending. Reload the queue.');
+      const year = new Intl.DateTimeFormat('en', {
+        timeZone: 'Africa/Nairobi',
+        year: 'numeric',
+      }).format(new Date());
+      const counter = await tx.admissionCounter.upsert({
+        where: { id: 'admission-' + year },
+        create: { id: 'admission-' + year, sequence: 1 },
+        update: { sequence: { increment: 1 } },
+      });
+      const result = await tx.student.updateMany({
+        where: { id, status: 'Pending' },
+        data: {
+          status: 'Admitted',
+          admissionNumber:
+            student.admissionNumber ||
+            'JPS-' + year + '-' + String(counter.sequence).padStart(5, '0'),
+          enrolmentAcceptedAt:
+            student.enrolmentAcceptedAt ?? new Date(signedOn + 'T12:00:00+03:00'),
+          enrolmentAcceptedBy: student.enrolmentAcceptedBy ?? user.id,
+          enrolmentAgreementVersion:
+            student.enrolmentAgreementVersion ?? agreementVersion,
+          admissionApprovedAt: new Date(),
+          admissionApprovedBy: user.id,
+          admissionApprovalBasis:
+            'Paper agreement ' +
+            agreementVersion +
+            ' signed by ' +
+            signedBy +
+            ' on ' +
+            signedOn +
+            '; filed at ' +
+            reference +
+            '; recorded by ' +
+            user.name,
+        },
+      });
+      if (!result.count)
+        throw new UserError('The application changed. Reload the queue.');
+    });
+    return '/admin/admissions';
+  });
+}
 export async function changeStudentStatus(_state: FormState, form: FormData) {
   return runForm(form, async () => {
     const user = await requireUser(['admin']);
